@@ -24,7 +24,7 @@ void SPI_Init()
 {
     /* Enable SPI, Master mode, clk/16 */
     SPCR |= (1 << SPE) | (1 << MSTR) | (1 << SPR0);
-
+    PORTB &= ~(1 << PB2);
     DDRB |= (1 << DDB5);      // SCK DDR->OUT
 	DDRB |= (1 << DDB3);    // MOSI DDR->OUT
 	DDRB |= (1 << DDB2);    // /SS DDR -> OUT
@@ -33,14 +33,14 @@ void SPI_Init()
 
 uint16_t SPI_Read()
 {
-    int16_t temp;
-    int16_t temp2;
+    uint8_t temp;
+    uint8_t temp2;
     
     /*Chip select low*/
     PORTB &= ~(1 << PB2);
             
     /*put dummy byte in SPDR*/
-    SPDR = 0xFF;
+    SPDR = 0xF;
     
     /*wait for SPIF high*/
     while (!(SPSR & (1 << SPIF)));
@@ -48,13 +48,13 @@ uint16_t SPI_Read()
     /*copy SPDR out*/
     temp = (SPDR >> 1);
     /*put dummy byte in SPDR*/
-    SPDR = 0xFF;
+    SPDR = 0xF;
     
     /*wait for SPIF high*/
     while (!(SPSR & (1 << SPIF)));
     
     /*copy SPDR out*/
-    temp2 = SPDR & 0b0000000000011111;
+    temp2 = SPDR & 0b00011111;
     temp2 = (temp2 << 7);
     
     /*Chip select high*/
@@ -78,7 +78,7 @@ int main(void) {
         sensor_data = SPI_Read();
         
         /*Convert 12-bit data to temperature*/   
-        temperature = ((sensor_data/4095.0) - 0.5) * 100;
+        temperature = ((sensor_data/4095.0)*5 - 0.5) * 100;
        
          /*Convert to String*/
         sprintf(temperature_char, "%d ",temperature);
