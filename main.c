@@ -4,6 +4,11 @@
 #include <util/delay.h>
 #include <stdio.h>
 
+#define CS PORTB2
+#define CS0 DDB2
+#define MOSI DDB3
+#define CLK DDB5
+
 void USART_Init(unsigned int ubrr) { 
     /* Set baud rate */
     UBRR0 = ubrr;
@@ -21,51 +26,44 @@ void USART_Transmit( unsigned char data ) {
 }
 
 void SPI_Init()
-{
+{   
+    /* Set CLK, MOSI, CS as output */
+    DDRB |= (1<<CLK) | (1<<MOSI) | (1<<CS);
+    /* Chip select high*/
+    PORTB |= (1<<CS0);
     /* Enable SPI, Master mode, clk/16 */
     SPCR |= (1 << SPE) | (1 << MSTR) | (1 << SPR0);
-    PORTB &= ~(1 << PB2);
-    DDRB |= (1 << DDB5);      // SCK DDR->OUT
-	DDRB |= (1 << DDB3);    // MOSI DDR->OUT
-	DDRB |= (1 << DDB2);    // /SS DDR -> OUT
-
 }
 
 uint16_t SPI_Read()
 {
-    uint8_t temp;
-    uint8_t temp2;
+    uint16_t temp;
+    uint16_t temp2;
     
     /*Chip select low*/
-    PORTB &= ~(1 << PB2);
-            
+    PORTB &= ~(1<<CS0);
     /*put dummy byte in SPDR*/
-    SPDR = 0xF;
-    
+    SPDR = 0xFF;
     /*wait for SPIF high*/
     while (!(SPSR & (1 << SPIF)));
-        
     /*copy SPDR out*/
-    temp = (SPDR >> 1);
+    temp = SPDR & 0b0000000000111111;
+    temp = (temp << 7);
     /*put dummy byte in SPDR*/
-    SPDR = 0xF;
-    
+    SPDR = 0xFF;
     /*wait for SPIF high*/
     while (!(SPSR & (1 << SPIF)));
-    
     /*copy SPDR out*/
-    temp2 = SPDR & 0b00011111;
-    temp2 = (temp2 << 7);
-    
+    temp2 = SPDR & 0b0000000011111110;
+    temp2 = (temp2 >> 1);
     /*Chip select high*/
     PORTB |= (1 << PB2);
-            
-    /*return*/
-    return temp2 + temp;
+    /*Concatenate data and return*/
+    return temp | temp2;
 }
 
 int main(void) {
-    int i = 0;
+   int i = 0;
     unsigned int sensor_data;
     unsigned int temperature;
     unsigned char temperature_char[5];
